@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+ok
 
 # vijay_jewellers-dairy-laravel
 
@@ -69,5 +70,7 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 > > > > > > > c0f19ab (all files create)
 
 # vijay_jewellers
+
 # vijay_jewellers
+
 # vijayjewellers
