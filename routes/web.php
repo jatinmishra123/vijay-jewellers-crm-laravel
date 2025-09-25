@@ -9,7 +9,6 @@ use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\Admin\LuckyDrawController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Admin\SchemePaymentController;
-use App\Http\Controllers\WordpressUserSyncController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\PayphiController;
 
@@ -39,6 +38,9 @@ Route::prefix('admin')->group(function () {
             Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])->name('admin.customers.edit');
             Route::put('/customers/{customer}', [CustomerController::class, 'update'])->name('admin.customers.update');
             Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])->name('admin.customers.destroy');
+            Route::get('/customers/duplicates', [CustomerController::class, 'duplicates'])
+                ->name('admin.customers.duplicates')
+                ->middleware('auth');
 
             // Verification route
             Route::post('/customers/{customer}/verify', [CustomerController::class, 'updateVerification'])
@@ -76,6 +78,8 @@ Route::prefix('admin')->group(function () {
         Route::prefix('/payments')->group(function () {
             Route::get('/', [PaymentsController::class, 'index'])->name('payments.index');
             Route::get('/payments/export/{type}', [PaymentsController::class, 'export'])->name('payments.export');
+            Route::post('/payments/initiate', [PaymentsController::class, 'initiatePayment'])->name('payments.initiate');
+            Route::post('/payments/callback', [PaymentsController::class, 'paymentCallback'])->name('payments.callback');
 
         });
 
@@ -91,9 +95,9 @@ Route::prefix('admin')->group(function () {
 
 
         // Sales (Admin only)
-        Route::middleware('role:Admin')->group(function () {
-            Route::get('sales', [SalesController::class, 'index'])->name('admin.sales.index');
-        });
+        // Route::middleware('role:Admin')->group(function () {
+        //     Route::get('sales', [SalesController::class, 'index'])->name('admin.sales.index');
+        // });
 
         Route::prefix('admin')->name('admin.')->group(function () {
 
@@ -144,9 +148,3 @@ Route::get('/', function () {
 });
 
 
-
-
-// this api intigartion routs
-
-
-Route::get('/sync-wordpress-users', [WordpressUserSyncController::class, 'syncUsers']);

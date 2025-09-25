@@ -42,13 +42,13 @@
             @endif
 
             @if(in_array($userRole, ['Admin', 'Accounts']))
-                <div class="col-xl-2 col-md-4 col-sm-6">
+                <div class="col-xl-4 col-md-4 col-sm-6">
                     <div class="card stat-card sales border-0 shadow-sm">
                         <div class="card-body p-3 text-center">
                             <div class="stat-icon mb-2 mx-auto">
                                 <i class="bi bi-currency-rupee text-white fs-5"></i>
                             </div>
-                            <h4 class="mb-0 text-black fs-1 ">{{ number_format($stats['total_sales'] ?? 0) }}</h4>
+                            <h4 class="mb-3 text-blackfs-1 ">{{ number_format($stats['total_sales'] ?? 0) }}</h4>
                             <p class="mb-0 text-black-50 small">Sales</p>
                         </div>
                     </div>

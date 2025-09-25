@@ -20,34 +20,41 @@ class SalesController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Sale::query();
+        // Load sales with related customer and scheme
+        $query = Sale::with([
+            'customer' => function ($q) {
+                $q->select('id', 'name', 'email', 'mobile', 'scheme_id', 'scheme_duration', 'scheme_total_amount');
+            },
+            'customer.scheme' => function ($q) {
+                $q->select('id', 'name', 'duration', 'total_amount');
+            }
+        ]);
 
-        // Search by product name or type
+        // 🔎 Search by product name, type, or customer name
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('product_name', 'like', "%{$search}%")
-                    ->orWhere('product_type', 'like', "%{$search}%");
+                    ->orWhere('product_type', 'like', "%{$search}%")
+                    ->orWhereHas('customer', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%")
+                            ->orWhere('mobile', 'like', "%{$search}%");
+                    });
             });
         }
 
         $sales = $query->orderBy('created_at', 'desc')->paginate(10);
 
-        // Get today's date
+        // Daily sales data
         $today = Carbon::today();
         $yesterday = Carbon::yesterday();
 
-        // Calculate daily sales statistics
         $dailySales = $this->getDailySales($today);
         $yesterdaySales = $this->getDailySales($yesterday);
-
-        // Calculate product-wise sales
         $productWiseSales = $this->getProductWiseSales($today);
-
-        // Get top selling products
         $topSellingProducts = $this->getTopSellingProducts($today);
 
-        // Calculate percentage changes
         $percentageChanges = [
             'total_sales' => $this->calculatePercentageChange($dailySales->total_sales ?? 0, $yesterdaySales->total_sales ?? 0),
             'online_sales' => $this->calculatePercentageChange($dailySales->online_sales ?? 0, $yesterdaySales->online_sales ?? 0),
@@ -55,7 +62,6 @@ class SalesController extends Controller
             'avg_order_value' => $this->calculatePercentageChange($dailySales->avg_order_value ?? 0, $yesterdaySales->avg_order_value ?? 0),
         ];
 
-        // If AJAX request, return partial table only
         if ($request->ajax()) {
             return view('admin.sales.partials.table', compact('sales'))->render();
         }
@@ -70,9 +76,7 @@ class SalesController extends Controller
         ));
     }
 
-    /**
-     * Get daily sales statistics
-     */
+
     private function getDailySales($date)
     {
         return Sale::whereDate('sale_date', $date)

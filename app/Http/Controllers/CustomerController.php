@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use Illuminate\Validation\Rule;
 
 use App\Models\Customer;
 use App\Models\User;
@@ -318,6 +319,9 @@ class CustomerController extends Controller
             'customer' => $coupon->customer
         ]);
     }
+    // show dublicates value 
+// List Duplicate Customers (by email or name)
+
 
     // Show edit form
     public function edit(Customer $customer)
@@ -333,14 +337,30 @@ class CustomerController extends Controller
     // Update customer
     public function update(Request $request, Customer $customer)
     {
+        // dd($customer->id, $customer->email);
+
         $user = auth()->user();
         if ($user->role_id == 3 && $customer->agent_id != $user->id)
             abort(403);
 
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255|unique:customers,email,' . $customer->id,
-            'mobile' => 'required|string|max:15|unique:customers,mobile,' . $customer->id,
+
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+                Rule::unique('customers', 'email')->ignore($customer->id) // 'id' likhne ki zarurat nahi
+            ],
+
+            'mobile' => [
+                'required',
+                'string',
+                'max:15',
+                Rule::unique('customers', 'mobile')->ignore($customer->id, 'id')
+            ],
+
             'address' => 'nullable|string|max:500',
             'is_active' => 'required|boolean',
             'verification_status' => 'required|in:pending,approved,rejected',
@@ -349,6 +369,7 @@ class CustomerController extends Controller
             'payment_link' => 'nullable|string|max:255',
             'scheme' => 'nullable|string|max:255'
         ]);
+
 
         if ($validator->fails())
             return redirect()->back()->withErrors($validator)->withInput();

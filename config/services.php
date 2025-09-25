@@ -4,14 +4,8 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Third Party Services
+    | Mail Services
     |--------------------------------------------------------------------------
-    |
-    | This file is for storing the credentials for third party services such
-    | as Mailgun, Postmark, AWS and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
-    |
     */
 
     'postmark' => [
@@ -28,18 +22,38 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Slack Notifications
+    |--------------------------------------------------------------------------
+    */
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Twilio (SMS / WhatsApp)
+    |--------------------------------------------------------------------------
+    */
+
     'twilio' => [
         'sid' => env('TWILIO_SID'),
         'token' => env('TWILIO_TOKEN'),
         'from' => env('TWILIO_WHATSAPP_FROM'),
-        'admin_number' => env('9889090837'),
+        'admin_number' => env('TWILIO_ADMIN_NUMBER'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | PayPhi Payment Gateway
+    |--------------------------------------------------------------------------
+    */
+
     'payphi' => [
         'sale_url' => env('PAYPHI_SALE_URL'),
         'status_url' => env('PAYPHI_STATUS_URL'),
@@ -48,6 +62,28 @@ return [
         'hash_key' => env('PAYPHI_HASH_KEY'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | WordPress API
+    |--------------------------------------------------------------------------
+    */
 
+    'wp' => [
+        'api_url' => env('WP_API_URL'),
+        'username' => env('WP_USER'),
+        'app_password' => env('WP_APP_PASSWORD'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | WooCommerce API
+    |--------------------------------------------------------------------------
+    */
+
+    'woocommerce' => [
+        'url' => env('WC_STORE_URL'),
+        'key' => env('WC_CONSUMER_KEY'),
+        'secret' => env('WC_CONSUMER_SECRET'),
+    ],
 
 ];

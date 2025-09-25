@@ -53,17 +53,33 @@ class DashboardController extends Controller
     {
         $stats = [
             'total_customers' => Customer::count(),
-            'total_sales' => Sale::whereDate('sale_date', today())->sum('amount'),
+
+            // All-time total sales
+            'total_sales' => Sale::sum('amount'),
+
+            // आज के sales अलग से चाहिए तो extra key बनाओ
+            'today_sales' => Sale::whereDate('sale_date', today())->sum('amount'),
+
             'new_members' => SchemeMember::whereDate('joined_date', today())->count(),
-            'scheme_collection' => SchemeMember::whereDate('joined_date', today())
-                ->sum(DB::raw('(SELECT total_amount FROM schemes WHERE schemes.id = scheme_members.scheme_id) / (SELECT duration FROM schemes WHERE schemes.id = scheme_members.scheme_id)')),
-            'total_schemes' => Scheme::where('status', 'active')->count(),
+
+            'scheme_collection' => SchemeMember::join('schemes', 'scheme_members.scheme_id', '=', 'schemes.id')
+                ->whereDate('scheme_members.joined_date', today())
+                ->selectRaw('SUM(schemes.total_amount / schemes.duration) as total')
+                ->value('total'),
+
+            // All-time total schemes
+            'total_schemes' => Scheme::count(),
+
+            // आज के payments
             'total_payments' => SchemeMember::whereDate('joined_date', today())->count(),
+
+            // Profit calculation (example: 20% of total sales today)
             'profit' => Sale::whereDate('sale_date', today())->sum('amount') * 0.2
         ];
 
         return view('admin.dashboard', compact('user', 'stats', 'roles'));
     }
+
 
     private function managerDashboard($user)
     {

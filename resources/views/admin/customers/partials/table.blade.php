@@ -14,8 +14,8 @@
     </td>
 
     <!-- Scheme -->
-    <td class="text-end">{{ $customer->scheme?->name ?? 'Not Provided' }}</td>
-   <td class="text-end">{{ $customer->scheme_duration ?? 'Not Provided' }}</td>
+    <td class="text-end">{{ $customer->scheme?->name ?? '-' }}</td>
+   <td class="text-end">{{ $customer->scheme_duration ?? '-' }}</td>
       <td class="text-end">{{ $customer->scheme_total_amount ?? 'Not Provided' }}</td>
     <!-- Email -->
     <td style="max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -30,8 +30,7 @@
         {{ Str::limit($customer->address, 30) ?? 'N/A' }}
     </td>
 
-    <!-- Mtoken -->
-    <td>{{ $customer->mtoken }}</td>
+ 
 
     <!-- Status -->
     <td class="text-center">

@@ -1,7 +1,8 @@
 <table class="table table-bordered table-striped">
     <thead>
         <tr>
-            <th>ID</th>
+            <th>Sr.n</th>
+            <th>Customer Name</th>
             <th>Product Type</th>
             <th>Product Name</th>
             <th>Amount</th>
@@ -12,9 +13,11 @@
         </tr>
     </thead>
     <tbody>
-        @forelse($sales as $sale)
+        @forelse($sales as $key => $sale)
             <tr>
-                <td>{{ $sale->id }}</td>
+                <td>{{ $key + 1 }}</td>
+                <td>{{ $sale->customer->name ?? 'No Scheme' }}</td>
+
                 <td>{{ $sale->product_type }}</td>
                 <td>{{ $sale->product_name }}</td>
                 <td>{{ number_format($sale->amount, 2) }}</td>

@@ -151,7 +151,7 @@
                                         <th class="text-nowrap small">Email</th>
                                         <th class="text-nowrap small">Phone</th>
                                         <th class="text-nowrap small">Address</th>
-                                        <th class="text-nowrap small">M Token</th>
+                                       
                                         <th class="text-nowrap small">Status</th>
 
                                         <th class="text-nowrap small">Verification</th>

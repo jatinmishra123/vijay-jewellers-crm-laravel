@@ -10,11 +10,16 @@ class Customer extends Model
 {
     use HasFactory;
 
-    // ✅ Fillable fields matching your DB table
+    // ✅ Fillable fields (CRM + WP/Woo Sync support)
     protected $fillable = [
+        'woo_id',
+        'wp_id',
+        'username',
         'name',
-        'mobile',
+        'first_name',
+        'last_name',
         'email',
+        'mobile',
         'address',
         'scheme_id',
         'is_active',
@@ -25,8 +30,10 @@ class Customer extends Model
         'scheme_total_amount',
         'mtoken',
         'qr_code',
-        'payment_status',    // New field
-        'payment_link',      // New field
+        'payment_status',
+        'payment_link',
+        'role',
+        'registered_date',
     ];
 
     // ✅ Casting
@@ -34,6 +41,7 @@ class Customer extends Model
         'is_active' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'registered_date' => 'datetime',
     ];
 
     // Verification status constants
@@ -46,62 +54,78 @@ class Customer extends Model
     const PAYMENT_SUCCESS = 'success';
     const PAYMENT_FAILED = 'failed';
 
-    // ✅ Relation with agent
+    /*
+    |--------------------------------------------------------------------------
+    | 🔹 Relations
+    |--------------------------------------------------------------------------
+    */
     public function agent(): BelongsTo
     {
         return $this->belongsTo(User::class, 'agent_id');
     }
+
     public function scheme()
     {
         return $this->belongsTo(Scheme::class, 'scheme_id', 'id');
     }
 
-
-    // ✅ Relation with sales
     public function sales()
     {
         return $this->hasMany(Sale::class, 'customer_id');
     }
 
-    // ✅ Relation with coupon
     public function coupon()
     {
         return $this->hasOne(Coupon::class, 'customer_id');
     }
 
-    // ✅ Scope for active customers
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'customer_id');
+    }
+
+    public function schemePayments()
+    {
+        return $this->hasMany(\App\Models\SchemePayment::class, 'customer_id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 🔹 Scopes
+    |--------------------------------------------------------------------------
+    */
     public function scopeActive($query)
     {
         return $query->where('is_active', true)
             ->where('verification_status', self::VERIFICATION_APPROVED);
     }
 
-    // ✅ Scope for pending verification
     public function scopePendingVerification($query)
     {
         return $query->where('verification_status', self::VERIFICATION_PENDING);
     }
 
-    // ✅ Scope for inactive or rejected customers
     public function scopeInactive($query)
     {
         return $query->where('is_active', false)
             ->orWhere('verification_status', self::VERIFICATION_REJECTED);
     }
 
-    // ✅ Get today's new customers
+    /*
+    |--------------------------------------------------------------------------
+    | 🔹 Stats Helpers
+    |--------------------------------------------------------------------------
+    */
     public static function getTodaysNewCustomers()
     {
         return self::whereDate('created_at', today())->count();
     }
 
-    // ✅ Get active members count
     public static function getActiveMembersCount()
     {
         return self::active()->count();
     }
 
-    // ✅ Get inactive or pending verification count
     public static function getInactivePendingCount()
     {
         return self::where(function ($query) {
@@ -109,13 +133,42 @@ class Customer extends Model
                 ->orWhere('verification_status', self::VERIFICATION_PENDING);
         })->count();
     }
-    public function payments()
+
+    /*
+    |--------------------------------------------------------------------------
+    | 🔹 Auto-generate QR Code when customer is created or updated
+    |--------------------------------------------------------------------------
+    */
+    protected static function booted()
     {
-        return $this->hasMany(Payment::class, 'customer_id');
-    }
-    public function schemePayments()
-    {
-        return $this->hasMany(\App\Models\SchemePayment::class, 'customer_id');
+        static::created(function ($customer) {
+            $customer->generateQrCode();
+        });
+
+        static::updated(function ($customer) {
+            if (empty($customer->qr_code)) {
+                $customer->generateQrCode();
+            }
+        });
     }
 
+    public function generateQrCode()
+    {
+        $qrData = [
+            'name' => $this->name,
+            'mobile' => $this->mobile,
+            'email' => $this->email ?? 'Not Provided',
+            'token' => $this->token ?? '',
+            'scheme' => $this->scheme?->name ?? null,
+            'mtoken' => $this->mtoken ?? '',
+            'use' => 'Verification / Check-in / Order Reference',
+            'payment_status' => $this->payment_status,
+            'payment_link' => $this->payment_link,
+        ];
+
+        $qrUrl = "https://quickchart.io/qr?text=" . urlencode(json_encode($qrData)) . "&size=200";
+
+        $this->qr_code = $qrUrl;
+        $this->saveQuietly(); // 👈 save without firing events again
+    }
 }

@@ -11,7 +11,7 @@
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
                             <p class="text-muted fw-medium mb-2">Daily Total Sales</p>
-                            <h4 class="mb-0">${{ number_format($dailySales->total_sales ?? 0, 2) }}</h4>
+                            <h4 class="mb-0">rs{{ number_format($dailySales->total_sales ?? 0, 2) }}</h4>
                         </div>
                         <div class="flex-shrink-0">
                             <div class="bg-primary-subtle p-3 rounded-3">

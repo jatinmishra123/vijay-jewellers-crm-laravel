@@ -48,7 +48,38 @@
                                     <tr>
                                         <td>{{ $key + 1 }}</td>
                                         <td>{{ $scheme->name }}</td>
-                                        <td>{{ \Illuminate\Support\Str::limit($scheme->description ?? 'N/A', 50) }}</td>
+                                        <td>
+                                            {{ \Illuminate\Support\Str::words(strip_tags($scheme->description ?? 'N/A'), 20, '...') }}
+
+                                            @if(strlen(strip_tags($scheme->description)) > 0)
+                                                <a href="#" data-bs-toggle="modal" data-bs-target="#schemeModal{{ $scheme->id }}">
+                                                    View More
+                                                </a>
+                                            @endif
+                                        </td>
+                                        <!-- Scheme Description Modal -->
+                                        <div class="modal fade" id="schemeModal{{ $scheme->id }}" tabindex="-1"
+                                            aria-labelledby="schemeModalLabel{{ $scheme->id }}" aria-hidden="true">
+                                            <div class="modal-dialog modal-lg">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="schemeModalLabel{{ $scheme->id }}">
+                                                            {{ $scheme->name }}
+                                                        </h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                            aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>{{ strip_tags($scheme->description) }}</p>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary"
+                                                            data-bs-dismiss="modal">Close</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <td>{{ $scheme->duration }}</td>
                                         <td>{{ number_format($scheme->total_amount, 2) }}</td>
                                         <td>{{ $scheme->created_at->format('M d, Y H:i') }}</td>

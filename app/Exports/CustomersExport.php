@@ -11,7 +11,8 @@ class CustomersExport implements FromCollection, WithHeadings, WithMapping
 {
     public function collection()
     {
-        return Customer::with('sales', 'scheme')->whereDate('created_at', today())->get();
+        // आज बनाए गए customers लाने हैं
+        return Customer::with(['sales', 'scheme'])->whereDate('created_at', today())->get();
     }
 
     public function headings(): array
@@ -19,11 +20,12 @@ class CustomersExport implements FromCollection, WithHeadings, WithMapping
         return [
             'ID',
             'Name',
+            'Scheme',
             'Phone',
             'Email',
             'Status',
             'Total Sales',
-            'Created Date'
+            'Created Date',
         ];
     }
 
@@ -31,13 +33,13 @@ class CustomersExport implements FromCollection, WithHeadings, WithMapping
     {
         return [
             $customer->id,
-            $customer->name,
+            $customer->name ?? 'N/A',
             $customer->scheme?->name ?? 'Not Provided',
-            $customer->phone,
-            $customer->email,
-            ucfirst($customer->status),
+            $customer->mobile ?? 'N/A',
+            $customer->email ?? 'N/A',
+            $customer->is_active ? 'Active' : 'Inactive',
             $customer->sales->count(),
-            $customer->created_at->format('d-M-Y'),
+            $customer->created_at ? $customer->created_at->format('d-M-Y') : 'N/A',
         ];
     }
 }
