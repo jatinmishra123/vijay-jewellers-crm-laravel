@@ -1,29 +1,31 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
 class Payment extends Model
 {
+    // Fillable fields as per your table
     protected $fillable = [
+        'scheme_id',
         'customer_id',
         'amount',
-        'payment_mode',
+        'payment_duration',
         'status',
-        'reference',
-        'transaction_date',
-        'notes'
+        'method',
+        'notes',
+        'due_date',
+        'paid_at',
     ];
 
-    // Payment का customer
     public function customer()
     {
         return $this->belongsTo(Customer::class, 'customer_id');
     }
 
-    // Relation to Sale
-    public function sale()
+    public function scheme()
     {
-        return $this->belongsTo(Sale::class, 'sale_id');
+        return $this->belongsTo(Scheme::class, 'scheme_id');
     }
 }

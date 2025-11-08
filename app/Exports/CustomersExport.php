@@ -34,7 +34,7 @@ class CustomersExport implements FromCollection, WithHeadings, WithMapping
         return [
             $customer->id,
             $customer->name ?? 'N/A',
-            $customer->scheme?->name ?? 'Not Provided',
+            $customer->scheme?->name ?? '-',
             $customer->mobile ?? 'N/A',
             $customer->email ?? 'N/A',
             $customer->is_active ? 'Active' : 'Inactive',

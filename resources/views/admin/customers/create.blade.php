@@ -112,13 +112,16 @@
 
 
 
-                                                    <!-- Payment Link -->
-                                                    <div class="col-md-6">
-                                                        <label for="payment_link" class="form-label small">Payment Link</label>
-                                                        <input type="text" name="payment_link" id="payment_link"
-                                                            value="{{ old('payment_link') }}" placeholder="Enter payment link (optional)"
-                                                            class="form-control form-control-sm">
-                                                    </div>
+                                                   <!-- Payment Link -->
+<div class="col-md-6">
+    <label for="payment_link" class="form-label small">Payment Link</label>
+    <input type="text" name="payment_link" id="payment_link"
+        value="{{ old('payment_link') }}"
+        placeholder="Auto generated after save"
+        class="form-control form-control-sm"
+        readonly>
+</div>
+
 
 
                                                 </div>
@@ -136,7 +139,7 @@
 @endsection
 
 @push('scripts')
-   <script>
+ <script>
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('customer-form');
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -165,7 +168,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const formData = new FormData(form);
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating...';
+        submitBtn.innerHTML = `
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 
+            Creating...
+        `;
         messageDiv.innerHTML = '';
 
         fetch(form.action, {
@@ -180,26 +186,78 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .then(response => response.json())
         .then(data => {
+            console.log("Server Response:", data);
+
             if (data.success) {
-                messageDiv.innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+                // ✅ Success message
+                messageDiv.innerHTML = `
+                    <div class="alert alert-success">${data.message}</div>
+                    ${data.payment_link ? `
+                        <div class="mt-3 border rounded p-2 bg-light">
+                            <label class="small fw-bold mb-1">Payment Link:</label>
+                            <input type="text" id="generatedPaymentLink" 
+                                class="form-control form-control-sm mb-2" 
+                                value="${data.payment_link}" readonly>
+
+                            <div class="d-flex gap-2">
+                                <button id="copyLinkBtn" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-clipboard"></i> Copy Link
+                                </button>
+                                <a href="${data.payment_link}" target="_blank" 
+                                   class="btn btn-sm btn-success">
+                                   <i class="bi bi-box-arrow-up-right"></i> Open Link
+                                </a>
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+
+                // ✅ Copy button functionality
+                const copyBtn = document.getElementById('copyLinkBtn');
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', function () {
+                        const linkField = document.getElementById('generatedPaymentLink');
+                        navigator.clipboard.writeText(linkField.value);
+                        this.innerHTML = '<i class="bi bi-check2-circle text-success"></i> Copied!';
+                        setTimeout(() => {
+                            this.innerHTML = '<i class="bi bi-clipboard"></i> Copy Link';
+                        }, 2000);
+                    });
+                }
+
+                // ✅ Reset & Redirect (optional delay)
                 form.reset();
+                submitBtn.innerHTML = 'Create Customer';
+                submitBtn.disabled = false;
+
+                // 3 सेकंड बाद redirect
                 setTimeout(() => {
                     window.location.href = "{{ route('admin.customers.index') }}";
-                }, 1500);
-            } else if (data.errors) {
+                }, 3000);
+            } 
+            else if (data.errors) {
+                // ❌ Validation errors
                 let errors = '<div class="alert alert-danger"><ul class="mb-0">';
                 for (let key in data.errors) {
-                    errors += '<li>' + data.errors[key][0] + '</li>';
+                    errors += `<li>${data.errors[key][0]}</li>`;
                 }
                 errors += '</ul></div>';
                 messageDiv.innerHTML = errors;
-            } else if (data.message) {
-                messageDiv.innerHTML = '<div class="alert alert-danger">' + data.message + '</div>';
+            } 
+            else {
+                // ❌ General error message
+                messageDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        ${data.message || 'Something went wrong. Please try again.'}
+                    </div>`;
             }
         })
         .catch(err => {
-            messageDiv.innerHTML = '<div class="alert alert-danger">An error occurred. Please try again.</div>';
-            console.error(err);
+            console.error('Fetch Error:', err);
+            messageDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> Server not responding. Please try again.
+                </div>`;
         })
         .finally(() => {
             submitBtn.disabled = false;
@@ -208,5 +266,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+
 
 @endpush

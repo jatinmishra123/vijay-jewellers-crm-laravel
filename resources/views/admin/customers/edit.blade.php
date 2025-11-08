@@ -213,15 +213,83 @@
 @endpush
 
 @push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Add form submission handling
-            const form = document.querySelector('form');
-            form.addEventListener('submit', function (e) {
-                const submitBtn = form.querySelector('button[type="submit"]');
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
-            });
+ @push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector('form');
+    const messageDiv = document.createElement('div');
+    form.prepend(messageDiv);
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Updating...`;
+
+        const formData = new FormData(form);
+
+        fetch(form.action, {
+            method: "POST",
+            headers: {
+                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                "Accept": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                messageDiv.innerHTML = `
+                    <div class="alert alert-success">${data.message}</div>
+                    ${data.payment_link ? `
+                        <div class="mt-3 border rounded p-2 bg-light">
+                            <label class="small fw-bold mb-1">Payment Link:</label>
+                            <input type="text" id="generatedPaymentLink" 
+                                   class="form-control form-control-sm mb-2" 
+                                   value="${data.payment_link}" readonly>
+
+                            <div class="d-flex gap-2">
+                                <button id="copyLinkBtn" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-clipboard"></i> Copy Link
+                                </button>
+                                <a href="${data.payment_link}" target="_blank" 
+                                   class="btn btn-sm btn-success">
+                                   <i class="bi bi-box-arrow-up-right"></i> Open Link
+                                </a>
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+
+                const copyBtn = document.getElementById('copyLinkBtn');
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', function () {
+                        const linkField = document.getElementById('generatedPaymentLink');
+                        navigator.clipboard.writeText(linkField.value);
+                        this.innerHTML = '<i class="bi bi-check2-circle text-success"></i> Copied!';
+                        setTimeout(() => {
+                            this.innerHTML = '<i class="bi bi-clipboard"></i> Copy Link';
+                        }, 2000);
+                    });
+                }
+
+                submitBtn.innerHTML = 'Update Customer';
+                submitBtn.disabled = false;
+            } else {
+                messageDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.message || 'Something went wrong.'}</div>`;
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Update Customer';
+            }
+        })
+        .catch(err => {
+            messageDiv.innerHTML = `<div class="alert alert-danger">Server not responding. Please try again.</div>`;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Update Customer';
         });
-    </script>
+    });
+});
+</script>
+@endpush
+
 @endpush

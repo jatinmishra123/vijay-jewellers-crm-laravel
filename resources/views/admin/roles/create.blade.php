@@ -20,24 +20,32 @@
     </div>
 
     <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header text-white">
+        <div class="col-12 col-lg-12 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header  text-white">
                     <h5 class="mb-0">Role Details</h5>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('admin.roles.store') }}" method="POST">
                         @csrf
-                        
+
+                        <!-- Role Dropdown -->
                         <div class="mb-3">
-                            <label for="name" class="form-label">Role Name</label>
-                            <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                                id="name" name="name" value="{{ old('name') }}" required>
+                            <label for="name" class="form-label">Select Role <span class="text-danger">*</span></label>
+                            <select class="form-control @error('name') is-invalid @enderror" id="name" name="name" required>
+                                <option value="">-- Select Role --</option>
+                                @foreach($roleOptions as $role)
+                                    <option value="{{ $role }}" {{ old('name') == $role ? 'selected' : '' }}>
+                                        {{ $role }}
+                                    </option>
+                                @endforeach
+                            </select>
                             @error('name')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
 
+                        <!-- Permissions -->
                         <div class="mb-3">
                             <label class="form-label">Permissions</label>
                             <div class="row">
@@ -61,9 +69,9 @@
                             @enderror
                         </div>
 
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success">Create Role</button>
+                        <div class="d-flex justify-content-end gap-2">
                             <a href="{{ route('admin.roles.index') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-success">Create Role</button>
                         </div>
                     </form>
                 </div>

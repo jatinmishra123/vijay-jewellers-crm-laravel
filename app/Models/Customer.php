@@ -171,4 +171,10 @@ class Customer extends Model
         $this->qr_code = $qrUrl;
         $this->saveQuietly(); // 👈 save without firing events again
     }
+    // inside class Customer extends Model
+    public function conversations()
+    {
+        return $this->hasMany(\App\Models\CustomerConversation::class, 'customer_id')->orderBy('created_at', 'desc');
+    }
+
 }

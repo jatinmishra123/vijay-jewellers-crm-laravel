@@ -39,11 +39,16 @@ class ReportController extends Controller
     {
         $date = $request->date ?? today()->format('Y-m-d');
 
+        // नए members count
         $newMembers = SchemeMember::whereDate('joined_date', $date)->count();
 
-        $totalCollection = SchemeMember::whereDate('joined_date', $date)
-            ->sum(DB::raw('(SELECT total_amount FROM schemes WHERE schemes.id = scheme_members.scheme_id) / (SELECT duration FROM schemes WHERE schemes.id = scheme_members.scheme_id)'));
+        // total collection (schemes join करके)
+        $totalCollection = DB::table('scheme_members')
+            ->join('schemes', 'scheme_members.scheme_id', '=', 'schemes.id')
+            ->whereDate('scheme_members.joined_date', $date)
+            ->sum(DB::raw('schemes.total_amount / schemes.duration'));
 
         return view('reports.schemes', compact('newMembers', 'totalCollection', 'date'));
     }
+
 }

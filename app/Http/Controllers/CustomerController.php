@@ -1,8 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
-use Illuminate\Validation\Rule;
 
+use Illuminate\Validation\Rule;
 use App\Models\Customer;
 use App\Models\User;
 use App\Models\Coupon;
@@ -23,32 +23,26 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-
-        // Base query with agent and scheme relation
         $query = Customer::with(['agent', 'scheme']);
 
-        // Restrict data for agents (role_id = 3)
         if ($user->role_id == 3) {
             $query->where('agent_id', $user->id);
         }
 
-        // ✅ Scheme filter (पहले scheme lock करो)
         if ($request->filled('scheme_id')) {
             $query->where('scheme_id', $request->scheme_id);
         }
 
-        // ✅ Search filter (name, email, mobile, mtoken) → scheme filter के अंदर ही चलेगा
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhere('mobile', 'like', "%{$search}%")
-                    ->orWhere('mtoken', 'like', "%{$search}%"); // 👈 mtoken भी added
+                    ->orWhere('mtoken', 'like', "%{$search}%");
             });
         }
 
-        // ✅ Status filter
         if ($request->filled('status')) {
             switch ($request->status) {
                 case 'active':
@@ -63,10 +57,8 @@ class CustomerController extends Controller
             }
         }
 
-        // Get customers with pagination (latest first)
         $customers = $query->orderBy('created_at', 'desc')->paginate(20);
 
-        // Statistics
         $stats = [
             'today_new' => Customer::whereDate('created_at', today())->count(),
             'active_count' => Customer::where('is_active', 1)->count(),
@@ -76,10 +68,8 @@ class CustomerController extends Controller
             })->count(),
         ];
 
-        // ✅ Load all schemes for filter dropdown
-        $schemes = \App\Models\Scheme::all();
+        $schemes = Scheme::all();
 
-        // AJAX request
         if ($request->ajax()) {
             $table = view('admin.customers.partials.table', compact('customers'))->render();
             $pagination = view('admin.customers.partials.pagination', compact('customers'))->render();
@@ -91,7 +81,6 @@ class CustomerController extends Controller
             ]);
         }
 
-        // Normal request
         return view('admin.customers.index', compact('customers', 'stats', 'schemes'));
     }
 
@@ -104,6 +93,7 @@ class CustomerController extends Controller
         return view('admin.customers.create', compact('agents', 'schemes'));
     }
 
+    // ✅ Store (with Auto Payment Link)
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -113,7 +103,7 @@ class CustomerController extends Controller
             'address' => 'required|string|max:500',
             'is_active' => 'required|boolean',
             'agent_id' => 'nullable|exists:users,id',
-            'scheme_id' => 'required|exists:schemes,id', // ✅ scheme_id required
+            'scheme_id' => 'required|exists:schemes,id',
             'scheme' => 'nullable|string|max:255',
             'mtoken' => 'nullable|string|max:255',
             'scheme_duration' => 'nullable|string',
@@ -128,7 +118,7 @@ class CustomerController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        // ✅ Duplicate mtoken check for same scheme
+        // ✅ Check duplicate MToken in same scheme
         if (!empty($request->mtoken) && !empty($request->scheme_id)) {
             $exists = Customer::where('scheme_id', $request->scheme_id)
                 ->where('mtoken', $request->mtoken)
@@ -152,6 +142,7 @@ class CustomerController extends Controller
         try {
             // Token generate
             $token = strtoupper(uniqid('TKN-'));
+
             $customer = Customer::create([
                 'name' => $request->name,
                 'email' => $request->email,
@@ -165,12 +156,24 @@ class CustomerController extends Controller
                 'mtoken' => $request->mtoken,
                 'verification_status' => 'pending',
                 'payment_status' => 'pending',
-                'payment_link' => $request->payment_link ?? null,
                 'scheme' => $request->scheme ?? 'Not Provided',
                 'scheme_id' => $request->scheme_id
             ]);
 
-            // QR Data
+            // ✅ Step 1: Generate Payment Link Automatically
+            $amount = number_format($request->scheme_total_amount ?? 0, 2, '.', '');
+            $baseUrl = url('/payphi/checkout');
+            $query = http_build_query([
+                'amount' => $amount,
+                'customer_email' => $customer->email ?? '',
+                'customer_mobile' => $customer->mobile,
+                'customer_id' => $customer->id,
+            ]);
+            $paymentLink = "{$baseUrl}?{$query}";
+
+            $customer->update(['payment_link' => $paymentLink]);
+
+            // ✅ Step 2: Generate QR code
             $qrData = [
                 'name' => $customer->name,
                 'mobile' => $customer->mobile,
@@ -182,13 +185,13 @@ class CustomerController extends Controller
                 'payment_status' => $customer->payment_status,
                 'payment_link' => $customer->payment_link
             ];
-
-            // Generate QR URL
-            $qrUrl = "https://quickchart.io/qr?text=" . urlencode(json_encode($qrData)) . "&size=200";
+            // ✅ Step 2: Generate scannable QR (QuickChart – direct payment link)
+            $qrUrl = 'https://quickchart.io/qr?text=' . urlencode($paymentLink) . '&size=250&margin=2';
             $customer->qr_code = $qrUrl;
             $customer->save();
 
-            // Generate Lucky Draw Coupon
+
+            // ✅ Step 3: Generate Lucky Draw Coupon
             $couponCode = 'LD-' . strtoupper(substr(uniqid(), -6));
             Coupon::create([
                 'coupon_code' => $couponCode,
@@ -196,18 +199,19 @@ class CustomerController extends Controller
                 'status' => 'active'
             ]);
 
-            // Send WhatsApp with QR and Coupon
+            // ✅ Step 4: Send WhatsApp
             $this->sendWhatsAppQR($customer, $couponCode);
 
             if ($request->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Customer added successfully, QR & Coupon sent.'
+                    'message' => 'Customer added successfully. Payment link generated & QR sent!',
+                    'payment_link' => $paymentLink
                 ]);
             }
 
             return redirect()->route('admin.customers.index')
-                ->with('success', 'Customer added successfully, QR & Coupon sent.');
+                ->with('success', 'Customer added successfully. Payment link generated & QR sent!');
 
         } catch (\Exception $e) {
             if ($request->ajax()) {
@@ -222,57 +226,78 @@ class CustomerController extends Controller
         }
     }
 
-
     // Send WhatsApp QR + Coupon
     private function sendWhatsAppQR(Customer $customer, $couponCode = null)
     {
-        $whatsAppApiUrl = 'https://graph.facebook.com/v17.0/<PHONE_NUMBER_ID>/messages';
-        $accessToken = env('WHATSAPP_ACCESS_TOKEN');
+        try {
+            $webhookUrl = 'https://webhook.whatapi.in/webhook/68c2b5570686f623b6e36d29';
 
-        // Ensure mobile number has country code (India example)
-        $mobileNumber = '91' . preg_replace('/[^0-9]/', '', $customer->mobile);
+            // ✅ नंबर formatting (India)
+            $mobileNumber = preg_replace('/[^0-9]/', '', $customer->mobile);
+            if (strlen($mobileNumber) == 10) {
+                $mobileNumber = '91' . $mobileNumber;
+            }
 
-        $message = "Hello {$customer->name},\nYour QR Code is attached.\n";
-        $message .= "Payment Status: {$customer->payment_status}\n";
-        if ($customer->payment_link) {
-            $message .= "Complete your payment here: {$customer->payment_link}\n";
+            // ✅ WhatsApp Message Content
+            $message = "👋 *Hello {$customer->name}*,\n\n";
+            $message .= "Your registration with *Vijay Jewellers* is successful ✅\n\n";
+            $message .= "📋 *Scheme:* {$customer->scheme}\n";
+            $message .= "💰 *Total Amount:* ₹{$customer->scheme_total_amount}\n";
+            $message .= "📱 *Mobile:* {$customer->mobile}\n\n";
+            $message .= "💳 *Payment Link:* {$customer->payment_link}\n\n";
+            $message .= "📸 Scan this QR to pay or show at counter.\n";
+            if ($couponCode) {
+                $message .= "\n🎟️ *Lucky Draw Coupon:* {$couponCode}\n";
+            }
+            $message .= "\n_Thank you for choosing Vijay Jewellers._ 💎";
+
+            // ✅ WhatAPI Payload
+            $payload = [
+                "receiverMobileNo" => $mobileNumber,
+                "messageType" => "image",
+                "message" => $message,
+                "fileUrl" => $customer->qr_code,
+                "fileName" => "vijay_jewellers_qr.png"
+            ];
+
+            // ✅ CURL Request
+            $ch = curl_init($webhookUrl);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Content-Type: application/json"
+            ]);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+            $response = curl_exec($ch);
+
+            if ($response === false) {
+                $error = curl_error($ch);
+                \Log::error('❌ WhatsApp Send Failed', ['error' => $error]);
+            }
+
+            curl_close($ch);
+
+            // ✅ Log success or fail
+            \Log::info('📤 WhatsApp Message Sent', [
+                'to' => $mobileNumber,
+                'payload' => $payload,
+                'response' => $response,
+            ]);
+
+            return $response;
+        } catch (\Exception $e) {
+            \Log::error('❌ WhatsApp Send Exception', ['error' => $e->getMessage()]);
+            return false;
         }
-        $message .= "Use it for verification, check-in, or order reference.\n";
-        if ($couponCode) {
-            $message .= "Your Lucky Draw Coupon: {$couponCode}";
-        }
-
-        $data = [
-            "messaging_product" => "whatsapp",
-            "to" => $mobileNumber,
-            "type" => "image",
-            "image" => [
-                "link" => $customer->qr_code, // URL, not base64
-                "caption" => $message
-            ]
-        ];
-
-        $ch = curl_init($whatsAppApiUrl);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "Authorization: Bearer $accessToken",
-            "Content-Type: application/json"
-        ]);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $response = curl_exec($ch);
-
-        if ($response === false) {
-            $error = curl_error($ch);
-            \Log::error("WhatsApp API Error: $error");
-        }
-
-        curl_close($ch);
-        return $response;
     }
 
 
-    // Scan QR (Payment Verification)
+
+    // Scan QR
     public function scanQR($token)
     {
         $customer = Customer::where('token', $token)->firstOrFail();
@@ -319,11 +344,8 @@ class CustomerController extends Controller
             'customer' => $coupon->customer
         ]);
     }
-    // show dublicates value 
-// List Duplicate Customers (by email or name)
 
-
-    // Show edit form
+    // Edit
     public function edit(Customer $customer)
     {
         $user = auth()->user();
@@ -334,48 +356,40 @@ class CustomerController extends Controller
         return view('admin.customers.edit', compact('customer', 'agents', 'schemes'));
     }
 
-    // Update customer
+    // Update
     public function update(Request $request, Customer $customer)
     {
-        // dd($customer->id, $customer->email);
-
         $user = auth()->user();
+
         if ($user->role_id == 3 && $customer->agent_id != $user->id)
             abort(403);
 
-
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'name' => 'required|string|max:255',
-
             'email' => [
                 'nullable',
                 'email',
                 'max:255',
-                Rule::unique('customers', 'email')->ignore($customer->id) // 'id' likhne ki zarurat nahi
+                Rule::unique('customers', 'email')->ignore($customer->id, 'id')
             ],
-
             'mobile' => [
                 'required',
                 'string',
                 'max:15',
                 Rule::unique('customers', 'mobile')->ignore($customer->id, 'id')
             ],
-
             'address' => 'nullable|string|max:500',
             'is_active' => 'required|boolean',
             'verification_status' => 'required|in:pending,approved,rejected',
             'agent_id' => 'nullable|exists:users,id',
             'payment_status' => 'nullable|in:pending,success,failed',
             'payment_link' => 'nullable|string|max:255',
-            'scheme' => 'nullable|string|max:255'
+            'scheme_id' => 'nullable|exists:schemes,id',
         ]);
-
-
-        if ($validator->fails())
-            return redirect()->back()->withErrors($validator)->withInput();
 
         $agent_id = $user->role_id == 3 ? $customer->agent_id : $request->agent_id;
 
+        // ✅ Step 1: Update customer data
         $customer->update([
             'name' => $request->name,
             'mobile' => $request->mobile,
@@ -385,34 +399,50 @@ class CustomerController extends Controller
             'verification_status' => $request->verification_status,
             'agent_id' => $agent_id,
             'payment_status' => $request->payment_status ?? $customer->payment_status,
-            'payment_link' => $request->payment_link ?? $customer->payment_link,
-            'scheme' => $request->scheme ?? $customer->scheme,
-            'scheme_id' => $request->scheme_id ?? null,
+            'scheme_id' => $request->scheme_id ?? $customer->scheme_id,
         ]);
 
-        return redirect()->route('admin.customers.index')->with('success', 'Customer updated successfully.');
+        // ✅ Step 2: Generate/refresh PayPhi payment link
+        $paymentLink = route('payphi.checkout', [
+            'amount' => $customer->scheme->total_amount ?? 0,
+            'customer_email' => $customer->email ?? '',
+            'customer_mobile' => $customer->mobile ?? '',
+            'customer_id' => $customer->id,
+        ]);
+
+        // ✅ Step 3: Save generated link in DB
+        $customer->update(['payment_link' => $paymentLink]);
+
+        // ✅ Step 4: AJAX Support (Edit page JS ke liye)
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Customer updated successfully!',
+                'payment_link' => $paymentLink,
+            ]);
+        }
+
+        // ✅ Step 5: Normal redirect (agar non-AJAX hai)
+        return redirect()->route('admin.customers.edit', $customer->id)
+            ->with('success', 'Customer updated successfully!')
+            ->with('payment_link', $paymentLink);
     }
 
-    // Delete customer
+
     public function destroy(Customer $customer)
     {
         try {
+            \App\Models\SchemeMember::where('customer_id', $customer->id)->delete();
             $customer->delete();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Customer deleted successfully.'
-            ]);
+            return redirect()->route('admin.customers.index')
+                ->with('success', 'Customer deleted successfully.');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error deleting customer: ' . $e->getMessage()
-            ], 500);
+            return redirect()->route('admin.customers.index')
+                ->with('error', 'Error deleting customer: ' . $e->getMessage());
         }
     }
 
-
-    // Update verification status
     public function updateVerification(Request $request, Customer $customer)
     {
         $request->validate([
@@ -432,7 +462,6 @@ class CustomerController extends Controller
         ]);
     }
 
-    // Optional: Expire old coupons
     public static function expireCoupons()
     {
         Coupon::where('status', 'active')->where('created_at', '<', now()->subDays(30))

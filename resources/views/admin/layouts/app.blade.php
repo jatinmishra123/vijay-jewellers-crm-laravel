@@ -276,6 +276,12 @@
                         <i class="ri-file-download-line"></i> <span>Export Report</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('admin.contacts.index') }}">
+                        <i class="bi bi-chat-dots"></i> <span>Follow Up</span>
+                    </a>
+                </li>
+
                 <li class="nav-item mt-auto mb-3"> <!-- Logout at the bottom -->
                     <form method="POST" action="{{ route('admin.logout') }}" style="width:100%;">
                         @csrf
@@ -288,7 +294,6 @@
             </ul>
         </aside>
         <!-- New Sidebar End -->
-
         <!-- Main Content -->
         <main class="main-content">
             <!-- Topbar Start -->
