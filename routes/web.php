@@ -8,6 +8,8 @@ use App\Http\Controllers\SchemeController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\Admin\LuckyDrawController;
 use App\Http\Controllers\Admin\ContactController;
+use App\Http\Controllers\Admin\ManageController;
+
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Admin\SchemePaymentController;
 use App\Http\Controllers\SalesController;
@@ -177,8 +179,58 @@ Route::get('/payphi-debug', function () {
         'return_url' => env('PAYPHI_RETURN_URL', 'not found'),
     ];
 });
+Route::prefix('admin')->name('admin.')->group(function () {
 
-// 🏠 Default route
+    /** -------------------------------
+     *  SCHEME SETTINGS ROUTES
+     * ------------------------------- */
+    Route::get('/manage/settings', [ManageController::class, 'settings'])
+        ->name('manage.settings');
+
+    Route::post('/manage/settings/store', [ManageController::class, 'settingsStore'])
+        ->name('manage.settings.store');
+
+    Route::get('/manage/settings/{id}/edit', [ManageController::class, 'settingsEdit'])
+        ->name('manage.settings.edit');
+
+    Route::put('/manage/settings/{id}', [ManageController::class, 'settingsUpdate'])
+        ->name('manage.settings.update');
+
+    Route::delete('/manage/settings/{id}', [ManageController::class, 'settingsDestroy'])
+        ->name('manage.settings.destroy');
+
+
+    /** -------------------------------
+     *  MANAGE CUSTOMER SCHEME ROUTES
+     * ------------------------------- */
+    Route::get('/manage/{id}/pdf', [ManageController::class, 'downloadPdf'])
+    ->name('manage.pdf');
+    Route::get('/manage/create', [ManageController::class, 'create'])
+        ->name('manage.create');
+
+    Route::post('/manage/store', [ManageController::class, 'store'])
+        ->name('manage.store');
+
+
+    Route::get('/manage', [ManageController::class, 'index'])
+        ->name('manage.index');
+
+    Route::get('/manage/{id}', [ManageController::class, 'show'])
+        ->name('manage.show');
+Route::get('admin/customers', [App\Http\Controllers\Admin\ManageController::class, 'create123'])
+    ->name('manage.customers');
+
+    Route::get('/manage/{id}/edit', [ManageController::class, 'edit'])
+        ->name('manage.edit');
+
+    Route::put('/manage/{id}/update', [ManageController::class, 'update'])
+        ->name('manage.update');
+
+    Route::delete('/manage/{id}/delete', [ManageController::class, 'destroy'])
+        ->name('manage.delete');
+});
+
+
 Route::get('/', function () {
     return redirect()->route('admin.login');
 });
